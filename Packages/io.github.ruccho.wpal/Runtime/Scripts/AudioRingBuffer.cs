@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Wpal
 {
@@ -21,26 +20,16 @@ namespace Wpal
         {
             get
             {
-                mut.WaitOne();
-                try
+                lock (this)
                 {
                     return overflow;
-                }
-                finally
-                {
-                    mut.ReleaseMutex();
                 }
             }
             set
             {
-                mut.WaitOne();
-                try
+                lock (this)
                 {
                     overflow = value;
-                }
-                finally
-                {
-                    mut.ReleaseMutex();
                 }
             }
         }
@@ -49,8 +38,6 @@ namespace Wpal
         private int readPosition = 0;
 
         private readonly int alignment;
-
-        private Mutex mut = new Mutex();
 
         public AudioRingBuffer(int length, int alignment = 1)
         {
@@ -66,8 +53,7 @@ namespace Wpal
 
         private void Push(IntPtr source, int sourcePosition, int length)
         {
-            mut.WaitOne();
-            try
+            lock (this)
             {
                 int blocks = length / alignment;
                 length = blocks * alignment;
@@ -97,16 +83,11 @@ namespace Wpal
                         secondHalf * alignment);
                 ForwardPushPosition(blocks);
             }
-            finally
-            {
-                mut.ReleaseMutex();
-            }
         }
 
         public int Read(byte[] dest, int destPosition, int length)
         {
-            mut.WaitOne();
-            try
+            lock (this)
             {
                 int blocks = length / alignment;
 
@@ -120,22 +101,13 @@ namespace Wpal
                 readPosition = (readPosition + blocks) % BufferBlocks;
                 return blocks * alignment;
             }
-            finally
-            {
-                mut.ReleaseMutex();
-            }
         }
 
         public void Flush()
         {
-            mut.WaitOne();
-            try
+            lock (this)
             {
                 readPosition = pushPosition;
-            }
-            finally
-            {
-                mut.ReleaseMutex();
             }
         }
 
@@ -145,14 +117,9 @@ namespace Wpal
         {
             get
             {
-                mut.WaitOne();
-                try
+                lock (this)
                 {
                     return WroteBlocks * alignment;
-                }
-                finally
-                {
-                    mut.ReleaseMutex();
                 }
             }
         }
